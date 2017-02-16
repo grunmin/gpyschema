@@ -18,8 +18,8 @@ schema = {
         'icon': {'type': 'string', 'maxLength': 50, 'minLength': 2},
         'visible': {'type': 'boolean'},
         'desc': {'type': 'string', 'maxLength': 100, 'minLength': 0, 'title': '描述信息'},
-        'default': {'type': 'interge'},
-        'order': {'type': 'interge'},
+        'default': {'type': 'integer'},
+        'order': {'type': 'integer'},
         'permission2': {'type': 'string', 'format': 'json'},
         'permission': {'type': 'object',
             'properties': {

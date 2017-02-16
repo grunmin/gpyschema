@@ -30,6 +30,21 @@ def data_validate(schema, data, top=True, name=''):
     rtype = schema.get('type')
     title = schema.get('title', '') or name
     enum = schema.get('enum')
+    rnot = schema.get('not')
+    if enum and not isinstance(enum, list):
+        raise SchemaError('无效的数据模型:{0}'.format('枚举值必须通过列表传入'))
+    if enum and data not in enum:
+        raise ValidationError('{0} 值必须在指定区域内, 该区域是({1})'.format(title, ','.join(str(i) for i in enum)))
+
+    if rnot and not isinstance(rnot, dict):
+        raise SchemaError('无效的数据模型:{0}'.format('not只能是字典'))
+    if rnot:
+        try:
+            correct = data_validate(rnot, data, top=False)
+        except ValidationError:
+            correct = None
+        if correct:
+            raise ValidationError('{0} 值 {1} 不被允许'.format(title, str(data)))
 
     if rtype == 'object':
         properties = schema.get('properties')
@@ -68,7 +83,7 @@ def data_validate(schema, data, top=True, name=''):
                 data_validate(additionalProperties, value, top=False, name=key)
                 continue
             data_validate(properties[key], value, top=False, name=key)
-        return
+        return True
 
     elif rtype == 'array':
         items = schema.get('items')
@@ -93,19 +108,16 @@ def data_validate(schema, data, top=True, name=''):
             if len(unique) != len(data):
                 raise ValidationError('{0} 元素必须唯一'.format(title))
         if not items:
-            return
+            return True
         for i in data:
             data_validate(items, i, top=False)
 
-        return
+        return True
 
     elif top:
         raise SchemaError('无效的数据模型:{0}'.format('只能是列表或字典'))
 
-    if enum and not isinstance(enum, list):
-        raise SchemaError('无效的数据模型:{0}'.format('枚举值必须通过列表传入'))
-    if enum and data not in enum:
-        raise ValidationError('{0} 值必须在指定区域内, 该区域是({1})'.format(title, ','.join(str(i) for i in enum)))
+
 
     if rtype == 'string':
         if not isinstance(data, basestring):
@@ -138,7 +150,7 @@ def data_validate(schema, data, top=True, name=''):
             raise ValidationError('{0} 值不合理'.format(title))
 
         if not rformat:
-            return
+            return True
 
         if rformat == 'alpha' and not data.isalpha():
             raise ValidationError('{0} 值要求只包含英文字母'.format(title))
@@ -166,12 +178,12 @@ def data_validate(schema, data, top=True, name=''):
             except ValueError:
                 raise ValidationError('{0} 值要求json格式'.format(title))
 
-        return
+        return True
 
     if rtype == 'boolean':
         if not isinstance(data, bool):
             raise ValidationError('{0} 值必须是布尔类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]))
-        return 
+        return True
 
     if rtype in ['integer', 'number']:
         if rtype == 'integer' and not isinstance(data, (int, long)):
@@ -191,7 +203,7 @@ def data_validate(schema, data, top=True, name=''):
         if minimum and len(data) < minimum:
             raise ValidationError('{0} 值不能小于{1}'.format(title, str(minimum)))
 
-        return
+        return True
 
 
 if __name__ == '__main__':
@@ -204,8 +216,8 @@ if __name__ == '__main__':
             'icon': {'type': 'string', 'maxLength': 50, 'minLength': 2},
             'visible': {'type': 'boolean'},
             'desc': {'type': 'string', 'maxLength': 100, 'minLength': 0, 'title': '描述信息'},
-            'default': {'type': 'interge'},
-            'order': {'type': 'interge'},
+            'default': {'type': 'integer'},
+            'order': {'type': 'integer', 'not': {'type': 'integer', 'enum': [1]}},
             'id': {'enum': [1, 23, 3]},
             'permission2': {'type': 'string', 'format': 'json'},
             'permission': {'type': 'object',
@@ -226,7 +238,7 @@ if __name__ == '__main__':
         'permission': {"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]},
         'permission2': '{"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]}',
         'default': 1, 
-        'order': 11L, 
+        'order': 1, 
         'visible': True, 
         'cname': u'ip地址段', 
         'icon': u'glyphicon glyphicon-sort', 
