@@ -22,7 +22,7 @@ class SchemaError(Exception):
     def __init__(self, value):
         Exception.__init__(self, value)
 
-def data_validate(schema, data, top=True, name='', strict=True):
+def data_validate(schema, data, top=True, name=''):
 
     if not isinstance(schema, dict):
         raise SchemaError('无效的数据模型')
@@ -38,6 +38,7 @@ def data_validate(schema, data, top=True, name='', strict=True):
         maxProperties = schema.get('maxProperties')
         minProperties = schema.get('minProperties')
         dependencies = schema.get('dependencies')
+        additionalProperties = schema.get('additionalProperties')
         required = schema.get('required')
 
         if maxProperties and not isinstance(maxProperties, (int, long)):
@@ -48,6 +49,8 @@ def data_validate(schema, data, top=True, name='', strict=True):
             raise SchemaError('无效的数据模型:{0}'.format('required必须是列表'))
         if required and [i for i in required if i not in properties.keys()]:
             raise SchemaError('无效的数据模型:{0}'.format('required中的元素必须在properties中定义'))
+        if additionalProperties and not isinstance(additionalProperties, dict):
+            raise SchemaError('无效的数据模型:{0}'.format('additionalProperties必须是字典'))
 
         if maxProperties and len(data) > maxProperties:
             raise ValidationError('{0} 属性数量不能大于{1}'.format(title, str(maxProperties)))
@@ -59,9 +62,10 @@ def data_validate(schema, data, top=True, name='', strict=True):
                 raise ValidationError('必须包含属性{0}'.format(','.join(miss)))
 
         for key, value in data.items():
-            if strict and key not in properties.keys():
+            if not additionalProperties and key not in properties.keys():
                 raise ValidationError('{0}不在预期的属性列表中'.format(str(key)))
-            if not strict and key not in properties.keys():
+            if additionalProperties and key not in properties.keys():
+                data_validate(additionalProperties, value, top=False, name=key)
                 continue
             data_validate(properties[key], value, top=False, name=key)
         return
@@ -100,7 +104,8 @@ def data_validate(schema, data, top=True, name='', strict=True):
 
     if enum and not isinstance(enum, list):
         raise SchemaError('无效的数据模型:{0}'.format('枚举值必须通过列表传入'))
-    
+    if enum and data not in enum:
+        raise ValidationError('{0} 值必须在指定区域内, 该区域是({1})'.format(title, ','.join(str(i) for i in enum)))
 
     if rtype == 'string':
         if not isinstance(data, basestring):
@@ -201,6 +206,7 @@ if __name__ == '__main__':
             'desc': {'type': 'string', 'maxLength': 100, 'minLength': 0, 'title': '描述信息'},
             'default': {'type': 'interge'},
             'order': {'type': 'interge'},
+            'id': {'enum': [1, 23, 3]},
             'permission2': {'type': 'string', 'format': 'json'},
             'permission': {'type': 'object',
                 'properties': {
@@ -212,24 +218,24 @@ if __name__ == '__main__':
                 'required': ['c', 'r', 'u', 'd']
             }
         },
-        'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order',]
+        'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order', 'id']
     }
     data = {
         'category': u'基础资源管理', 
         'name': u'ip', 
         'permission': {"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]},
-        'permission2': '{"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]1}',
+        'permission2': '{"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]}',
         'default': 1, 
         'order': 11L, 
         'visible': True, 
         'cname': u'ip地址段', 
         'icon': u'glyphicon glyphicon-sort', 
-        # 'id': 23L, 
+        'id': 23L, 
         'desc': u''
     }
 
     try:
-        data_validate(schema, data, strict=True)
+        data_validate(schema, data)
         print '验证通过'
     except (SchemaError, ValidationError) as e:
         print e
