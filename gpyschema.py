@@ -29,8 +29,8 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
         return True
 
 
-    if not isinstance(schema, dict):
-        raise SchemaError('无效的数据模型')
+    if not isinstance(schema, dict) or not schema:
+        raise SchemaError('无效的数据模型:{0}'.format('schema必须是非空字典'))
 
     originSchema =  originSchema or schema
 
@@ -38,6 +38,8 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
     title = schema.get('title', '') or name
     enum = schema.get('enum')
     rnot = schema.get('not')
+    anyOf = schema.get('anyOf')
+
     if enum and not isinstance(enum, list):
         raise SchemaError('无效的数据模型:{0}'.format('枚举值必须通过列表传入'))
     if enum and data not in enum:
@@ -52,6 +54,21 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
             correct = None
         if correct:
             raise ValidationError('{0} 值 {1} 不被允许'.format(title, str(data)))
+
+    if anyOf and not isinstance(anyOf, list):
+        raise SchemaError('无效的数据模型:{0}'.format('anyOf只能是列表'))
+    if anyOf:
+        correct = None
+        for rschema in anyOf:
+            if correct is not None:
+                continue
+            try:
+                correct = data_validate(rschema, data, top=False, name=title, originSchema=originSchema)
+            except ValidationError:
+                correct = None
+        if correct is None:
+            raise ValidationError('{0} 值 不符合任意一种模式'.format(title))
+        return True
 
     if rtype == 'object':
         if not isinstance(data, dict):
@@ -276,9 +293,15 @@ if __name__ == '__main__':
                     '^[a-zA-Z]+\.[a-zA-Z]+$': {'type': 'array', 'minItems': 1}
                 },
                 'additionalProperties': False,
+            },
+            'any': {
+                'anyOf': [
+                    {'type': 'string'},
+                    {'type': 'integer'}
+                ]
             }
         },
-        'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order', 'id']
+        'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order', 'id', 'any']
     }
     data = {
         'category': u'基础资源管理', 
@@ -292,8 +315,9 @@ if __name__ == '__main__':
         'icon': u'glyphicon glyphicon-sort', 
         'id': 23L, 
         'desc': u'',
+        'any': '111',
         'schema': {
-            'c.': {
+            'c': {
                 'category': u'基础资源管理', 
                 'name': u'ip', 
                 'permission': {"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]},
@@ -305,6 +329,7 @@ if __name__ == '__main__':
                 'icon': u'glyphicon glyphicon-sort', 
                 'id': 23L, 
                 'desc': u'',
+                'any': 1.1
             }
         }
     }
