@@ -58,10 +58,11 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
 
         properties = schema.get('properties')
         if not properties or not isinstance(properties, dict):
-            raise SchemaError('无效的数据模型')
+            raise SchemaError('无效的数据模型:{0}'.format('object必须有properties定义'))
         maxProperties = schema.get('maxProperties')
         minProperties = schema.get('minProperties')
         dependencies = schema.get('dependencies')
+        patternProperties = schema.get('patternProperties')
         additionalProperties = schema.get('additionalProperties')
         required = schema.get('required')
 
@@ -75,6 +76,19 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
             raise SchemaError('无效的数据模型:{0}'.format('required中的元素必须在properties中定义'))
         if additionalProperties and not isinstance(additionalProperties, dict):
             raise SchemaError('无效的数据模型:{0}'.format('additionalProperties必须是字典'))
+        if patternProperties and not isinstance(patternProperties, dict):
+            raise SchemaError('无效的数据模型:{0}'.format('patternProperties必须是字典'))
+        if patternProperties:
+            for pattern, value in patternProperties.items():
+                if not isinstance(pattern, basestring):
+                    raise SchemaError('无效的数据模型:{0}'.format('无法识别正则式'))
+                if not (isinstance(value, basestring) and value == '{{Schema}}') and not (isinstance(value, dict) and value):
+                    raise SchemaError('无效的数据模型:{0}'.format('属性模式描述信息必须是有效的schema'))
+                try:
+                    rule = re.compile(pattern)
+                except:
+                    raise SchemaError('无效的数据模型:{0}'.format('无法识别属性模式的正则式'))
+
 
         if maxProperties and len(data) > maxProperties:
             raise ValidationError('{0} 属性数量不能大于{1}'.format(title, str(maxProperties)))
@@ -85,7 +99,14 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
             if miss:
                 raise ValidationError('{0}必须包含属性{1}'.format(title, ','.join(miss)))
 
+        patternList = patternProperties.keys() if patternProperties else []
         for key, value in data.items():
+            if patternList:
+                matchList = [p for p in patternList if re.match(p, key)]
+                for p in matchList:
+                    data_validate(patternProperties[p], value, top=False, name=key, originSchema=originSchema)
+                if matchList:
+                    continue
             if additionalProperties is None and key not in properties.keys():
                 continue
             if additionalProperties is False and key not in properties.keys():
@@ -151,7 +172,7 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
             try:
                 rule = re.compile(pattern)
             except:
-                raise SchemaError('无效的数据模型:{0}'.format(''))
+                raise SchemaError('无效的数据模型:{0}'.format('无法识别正则式'))
         if rformat and rformat not in ['email', 'ipv4', 'alpha', 'alnum', 'date', 'datetime', 'price', 'json']:
             raise SchemaError('无效的数据模型:{0}'.format(''))
 
@@ -246,9 +267,13 @@ if __name__ == '__main__':
             'schema': {'type': 'object', 
                 'properties': {
                     '_and': '{{Schema}}',
-                    '_or': '{{Schema}}',
+                    'c': {'type': 'array', 'minItems': 1},
                 },
-                'minProperties': 1
+                'minProperties': 1,
+                'patternProperties': {
+                    '^[a-zA-z]+$': '{{Schema}}',
+                    '^[a-zA-Z]+\.[a-zA-Z]+$': '{{Schema}}'
+                }
             }
         },
         'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order', 'id']
@@ -265,7 +290,7 @@ if __name__ == '__main__':
         'icon': u'glyphicon glyphicon-sort', 
         'id': 23L, 
         'desc': u'',
-        'schema': {'_or': {}}
+        'schema': {'xxxxxxxxx': {}}
     }
 
     try:
