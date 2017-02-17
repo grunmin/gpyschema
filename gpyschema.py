@@ -22,10 +22,16 @@ class SchemaError(Exception):
     def __init__(self, value):
         Exception.__init__(self, value)
 
-def data_validate(schema, data, top=True, name=''):
+def data_validate(schema, data, top=True, name='', originSchema=None):
+    
+    if isinstance(schema, basestring) and schema == '{{Schema}}':
+        data_validate(originSchema, data, top=False, name=name, originSchema=originSchema)
+
 
     if not isinstance(schema, dict):
         raise SchemaError('无效的数据模型')
+
+    originSchema =  originSchema or schema
 
     rtype = schema.get('type')
     title = schema.get('title', '') or name
@@ -40,13 +46,16 @@ def data_validate(schema, data, top=True, name=''):
         raise SchemaError('无效的数据模型:{0}'.format('not只能是字典'))
     if rnot:
         try:
-            correct = data_validate(rnot, data, top=False)
+            correct = data_validate(rnot, data, top=False, name=title, originSchema=originSchema)
         except ValidationError:
             correct = None
         if correct:
             raise ValidationError('{0} 值 {1} 不被允许'.format(title, str(data)))
 
     if rtype == 'object':
+        if not isinstance(data, dict):
+            raise ValidationError('{0} 值必须是字典, 您输入的是{1}'.format(title, str(type(data))[6:-1]))
+
         properties = schema.get('properties')
         if not properties or not isinstance(properties, dict):
             raise SchemaError('无效的数据模型')
@@ -74,18 +83,23 @@ def data_validate(schema, data, top=True, name=''):
         if required:
             miss = [i for i in required if i not in data.keys()]
             if miss:
-                raise ValidationError('必须包含属性{0}'.format(','.join(miss)))
+                raise ValidationError('{0}必须包含属性{1}'.format(title, ','.join(miss)))
 
         for key, value in data.items():
-            if not additionalProperties and key not in properties.keys():
+            if additionalProperties is None and key not in properties.keys():
+                continue
+            if additionalProperties is False and key not in properties.keys():
                 raise ValidationError('{0}不在预期的属性列表中'.format(str(key)))
             if additionalProperties and key not in properties.keys():
-                data_validate(additionalProperties, value, top=False, name=key)
+                data_validate(additionalProperties, value, top=False, name=key, originSchema=originSchema)
                 continue
-            data_validate(properties[key], value, top=False, name=key)
+            data_validate(properties[key], value, top=False, name=key, originSchema=originSchema)
         return True
 
     elif rtype == 'array':
+        if not isinstance(data, (list, tuple)):
+            raise ValidationError('{0} 值必须是列表或元组类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]))
+
         items = schema.get('items')
         if items and not isinstance(items, dict):
             raise SchemaError('无效的数据模型:{0}'.format('items必须是字典'))
@@ -110,7 +124,7 @@ def data_validate(schema, data, top=True, name=''):
         if not items:
             return True
         for i in data:
-            data_validate(items, i, top=False)
+            data_validate(items, i, name=title, top=False, originSchema=originSchema)
 
         return True
 
@@ -217,7 +231,7 @@ if __name__ == '__main__':
             'visible': {'type': 'boolean'},
             'desc': {'type': 'string', 'maxLength': 100, 'minLength': 0, 'title': '描述信息'},
             'default': {'type': 'integer'},
-            'order': {'type': 'integer', 'not': {'type': 'integer', 'enum': [1]}},
+            'order': {'type': 'integer', 'not': {'type': 'integer', 'enum': [12]}},
             'id': {'enum': [1, 23, 3]},
             'permission2': {'type': 'string', 'format': 'json'},
             'permission': {'type': 'object',
@@ -228,6 +242,13 @@ if __name__ == '__main__':
                     'd': {'type': 'array', 'minItems': 1},
                 },
                 'required': ['c', 'r', 'u', 'd']
+            },
+            'schema': {'type': 'object', 
+                'properties': {
+                    '_and': '{{Schema}}',
+                    '_or': '{{Schema}}',
+                },
+                'minProperties': 1
             }
         },
         'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order', 'id']
@@ -243,7 +264,8 @@ if __name__ == '__main__':
         'cname': u'ip地址段', 
         'icon': u'glyphicon glyphicon-sort', 
         'id': 23L, 
-        'desc': u''
+        'desc': u'',
+        'schema': {'_or': {}}
     }
 
     try:
