@@ -26,6 +26,7 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
     
     if isinstance(schema, basestring) and schema == '{{Schema}}':
         data_validate(originSchema, data, top=False, name=name, originSchema=originSchema)
+        return True
 
 
     if not isinstance(schema, dict):
@@ -110,7 +111,7 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
             if additionalProperties is None and key not in properties.keys():
                 continue
             if additionalProperties is False and key not in properties.keys():
-                raise ValidationError('{0}不在预期的属性列表中'.format(str(key)))
+                raise ValidationError('{0}不是有效的属性名'.format(str(key)))
             if additionalProperties and key not in properties.keys():
                 data_validate(additionalProperties, value, top=False, name=key, originSchema=originSchema)
                 continue
@@ -272,8 +273,9 @@ if __name__ == '__main__':
                 'minProperties': 1,
                 'patternProperties': {
                     '^[a-zA-z]+$': '{{Schema}}',
-                    '^[a-zA-Z]+\.[a-zA-Z]+$': '{{Schema}}'
-                }
+                    '^[a-zA-Z]+\.[a-zA-Z]+$': {'type': 'array', 'minItems': 1}
+                },
+                'additionalProperties': False,
             }
         },
         'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order', 'id']
@@ -290,7 +292,21 @@ if __name__ == '__main__':
         'icon': u'glyphicon glyphicon-sort', 
         'id': 23L, 
         'desc': u'',
-        'schema': {'xxxxxxxxx': {}}
+        'schema': {
+            'c.': {
+                'category': u'基础资源管理', 
+                'name': u'ip', 
+                'permission': {"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]},
+                'permission2': '{"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]}',
+                'default': 1, 
+                'order': 1, 
+                'visible': True, 
+                'cname': u'ip地址段', 
+                'icon': u'glyphicon glyphicon-sort', 
+                'id': 23L, 
+                'desc': u'',
+            }
+        }
     }
 
     try:
