@@ -22,17 +22,18 @@ class SchemaError(Exception):
     def __init__(self, value):
         Exception.__init__(self, value)
 
-def data_validate(schema, data, top=True, name='', originSchema=None):
+def data_validate(schema, data, top=True, name='', ref=None):
     
-    if isinstance(schema, basestring) and schema == '{{Schema}}':
-        data_validate(originSchema, data, top=False, name=name, originSchema=originSchema)
+    if isinstance(schema, basestring) and schema.startswith('#'):
+        if not ref.get(schema[1:]):
+            raise SchemaError('无效的数据模型:{0}'.format('找不到指定的schema'))
+        data_validate(ref.get(schema[1:]), data, top=False, name=name)
         return True
 
 
     if not isinstance(schema, dict) or not schema:
         raise SchemaError('无效的数据模型:{0}'.format('schema必须是非空字典'))
 
-    originSchema =  originSchema or schema
 
     rtype = schema.get('type')
     title = schema.get('title', '') or name
@@ -49,7 +50,7 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
         raise SchemaError('无效的数据模型:{0}'.format('not只能是字典'))
     if rnot:
         try:
-            correct = data_validate(rnot, data, top=False, name=title, originSchema=originSchema)
+            correct = data_validate(rnot, data, top=False, name=title, ref=ref)
         except ValidationError:
             correct = None
         if correct:
@@ -63,7 +64,7 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
             if correct is not None:
                 continue
             try:
-                correct = data_validate(rschema, data, top=False, name=title, originSchema=originSchema)
+                correct = data_validate(rschema, data, top=False, name=title, ref=ref)
             except ValidationError:
                 correct = None
         if correct is None:
@@ -122,7 +123,7 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
             if patternList:
                 matchList = [p for p in patternList if re.match(p, key)]
                 for p in matchList:
-                    data_validate(patternProperties[p], value, top=False, name=key, originSchema=originSchema)
+                    data_validate(patternProperties[p], value, top=False, name=key, ref=ref)
                 if matchList:
                     continue
             if additionalProperties is None and key not in properties.keys():
@@ -130,9 +131,9 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
             if additionalProperties is False and key not in properties.keys():
                 raise ValidationError('{0}不是有效的属性名'.format(str(key)))
             if additionalProperties and key not in properties.keys():
-                data_validate(additionalProperties, value, top=False, name=key, originSchema=originSchema)
+                data_validate(additionalProperties, value, top=False, name=key, ref=ref)
                 continue
-            data_validate(properties[key], value, top=False, name=key, originSchema=originSchema)
+            data_validate(properties[key], value, top=False, name=key, ref=ref)
         return True
 
     elif rtype == 'array':
@@ -163,7 +164,7 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
         if not items:
             return True
         for i in data:
-            data_validate(items, i, name=title, top=False, originSchema=originSchema)
+            data_validate(items, i, name=title, top=False, ref=ref)
 
         return True
 
@@ -340,7 +341,7 @@ if __name__ == '__main__':
     }
 
     try:
-        data_validate(schema, data)
+        data_validate(schema, data, ref={'Schema': schema})
         print '验证通过'
     except (SchemaError, ValidationError) as e:
         print e
