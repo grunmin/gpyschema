@@ -191,8 +191,8 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
                 rule = re.compile(pattern)
             except:
                 raise SchemaError('无效的数据模型:{0}'.format('无法识别正则式'))
-        if rformat and rformat not in ['email', 'ipv4', 'alpha', 'alnum', 'date', 'datetime', 'price', 'json']:
-            raise SchemaError('无效的数据模型:{0}'.format(''))
+        if rformat and rformat not in ['email', 'ipv4', 'alpha', 'alnum', 'date', 'datetime', 'price', 'json', 'regex']:
+            raise SchemaError('无效的数据模型:{0}'.format('不支持的formatter'))
 
 
         if maxLength and len(data) > maxLength:
@@ -230,6 +230,11 @@ def data_validate(schema, data, top=True, name='', originSchema=None):
                 json.loads(data)
             except ValueError:
                 raise ValidationError('{0} 值要求json格式'.format(title))
+        if rformat == 'regex':
+            try:
+                re.compile(data)
+            except:
+                raise ValidationError('{0} 值不是有效的正则式'.format(title))
 
         return True
 
