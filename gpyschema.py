@@ -101,7 +101,7 @@ def data_validate(schema, data, top=True, name='', ref=None):
             for pattern, value in patternProperties.items():
                 if not isinstance(pattern, basestring):
                     raise SchemaError('无效的数据模型:{0}'.format('无法识别正则式'))
-                if not (isinstance(value, basestring) and value == '{{Schema}}') and not (isinstance(value, dict) and value):
+                if not (isinstance(value, basestring) and value.startswith('#') and ref.get(value[1:])) and not (isinstance(value, dict) and value):
                     raise SchemaError('无效的数据模型:{0}'.format('属性模式描述信息必须是有效的schema'))
                 try:
                     rule = re.compile(pattern)
@@ -290,12 +290,12 @@ if __name__ == '__main__':
             },
             'schema': {'type': 'object', 
                 'properties': {
-                    '_and': '{{Schema}}',
+                    '_and': '#Schema',
                     'c': {'type': 'array', 'minItems': 1},
                 },
                 'minProperties': 1,
                 'patternProperties': {
-                    '^[a-zA-z]+$': '{{Schema}}',
+                    '^[a-zA-z]+$': '#Schema',
                     '^[a-zA-Z]+\.[a-zA-Z]+$': {'type': 'array', 'minItems': 1}
                 },
                 'additionalProperties': False,

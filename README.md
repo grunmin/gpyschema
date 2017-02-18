@@ -102,12 +102,12 @@ schema = {
         },
         'schema': {'type': 'object', 
             'properties': {
-                '_and': '{{Schema}}',
+                '_and': '#Schema',
                 'c': {'type': 'array', 'minItems': 1},
             },
             'minProperties': 1,
             'patternProperties': {
-                '^[a-zA-z]+$': '{{Schema}}',
+                '^[a-zA-z]+$': '#Schema',
                 '^[a-zA-Z]+\.[a-zA-Z]+$': {'type': 'array', 'minItems': 1}
             },
             'additionalProperties': False,
