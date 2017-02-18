@@ -43,11 +43,12 @@ def data_validate(schema, data, top=True, name='', ref=None):
     enum = schema.get('enum')
     rnot = schema.get('not')
     anyOf = schema.get('anyOf')
+    message = schema.get('message')
 
     if enum and not isinstance(enum, list):
         raise SchemaError('无效的数据模型:{0}'.format('枚举值必须通过列表传入'))
     if enum and data not in enum:
-        raise ValidationError('{0} 值必须在指定区域内, 该区域是({1})'.format(title, ','.join(str(i) for i in enum)), 'enum')
+        raise ValidationError(message or '{0} 值必须在指定区域内, 该区域是({1})'.format(title, ','.join(str(i) for i in enum)), 'enum')
 
     if rnot and not isinstance(rnot, dict):
         raise SchemaError('无效的数据模型:{0}'.format('not只能是字典'))
@@ -57,7 +58,7 @@ def data_validate(schema, data, top=True, name='', ref=None):
         except ValidationError:
             correct = None
         if correct:
-            raise ValidationError('{0} 值 {1} 不被允许'.format(title, str(data)), 'not')
+            raise ValidationError(message or '{0} 值 {1} 不被允许'.format(title, str(data)), 'not')
 
     if anyOf and not isinstance(anyOf, list):
         raise SchemaError('无效的数据模型:{0}'.format('anyOf只能是列表'))
@@ -71,12 +72,12 @@ def data_validate(schema, data, top=True, name='', ref=None):
             except ValidationError:
                 correct = None
         if correct is None:
-            raise ValidationError('{0} 值 格式错误'.format(title), 'anyOf')
+            raise ValidationError(message or '{0} 值 格式错误'.format(title), 'anyOf')
         return True
 
     if rtype == 'object':
         if not isinstance(data, dict):
-            raise ValidationError('{0} 值必须是字典, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
+            raise ValidationError(message or '{0} 值必须是字典, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
 
         properties = schema.get('properties')
         if not properties or not isinstance(properties, dict):
@@ -113,13 +114,13 @@ def data_validate(schema, data, top=True, name='', ref=None):
 
 
         if maxProperties and len(data) > maxProperties:
-            raise ValidationError('{0} 属性数量不能大于{1}'.format(title, str(maxProperties)), 'maxProperties')
+            raise ValidationError(message or '{0} 属性数量不能大于{1}'.format(title, str(maxProperties)), 'maxProperties')
         if minProperties and len(data) < minProperties:
-            raise ValidationError('{0} 属性数量不能小于{1}'.format(title, str(minProperties)), 'minProperties')
+            raise ValidationError(message or '{0} 属性数量不能小于{1}'.format(title, str(minProperties)), 'minProperties')
         if required:
             miss = [i for i in required if i not in data.keys()]
             if miss:
-                raise ValidationError('{0}必须包含属性{1}'.format(title, ','.join(miss)), 'required')
+                raise ValidationError(message or '{0}必须包含属性{1}'.format(title, ','.join(miss)), 'required')
 
         patternList = patternProperties.keys() if patternProperties else []
         for key, value in data.items():
@@ -132,7 +133,7 @@ def data_validate(schema, data, top=True, name='', ref=None):
             if additionalProperties is None and key not in properties.keys():
                 continue
             if additionalProperties is False and key not in properties.keys():
-                raise ValidationError('{0}不是有效的属性名'.format(str(key)), 'additionalProperties')
+                raise ValidationError(message or '{0}不是有效的属性名'.format(str(key)), 'additionalProperties')
             if additionalProperties and key not in properties.keys():
                 data_validate(additionalProperties, value, top=False, name=key, ref=ref)
                 continue
@@ -141,7 +142,7 @@ def data_validate(schema, data, top=True, name='', ref=None):
 
     elif rtype == 'array':
         if not isinstance(data, (list, tuple)):
-            raise ValidationError('{0} 值必须是列表或元组类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
+            raise ValidationError(message or '{0} 值必须是列表或元组类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
 
         items = schema.get('items')
         if items and not isinstance(items, dict):
@@ -156,14 +157,14 @@ def data_validate(schema, data, top=True, name='', ref=None):
         if uniqueItems and not isinstance(uniqueItems, bool):
             raise SchemaError('无效的数据模型:{0}'.format('uniqueItems必须是布尔值'))
         if maxItems and len(data) > maxItems:
-            raise ValidationError('{0} 元素数量不能大于{1}'.format(title, str(maxItems)), 'maxItems')
+            raise ValidationError(message or '{0} 元素数量不能大于{1}'.format(title, str(maxItems)), 'maxItems')
         if minItems and len(data) < minItems:
-            raise ValidationError('{0} 元素数量不能小于{1}'.format(title, str(minItems)), 'minItems')
+            raise ValidationError(message or '{0} 元素数量不能小于{1}'.format(title, str(minItems)), 'minItems')
         if uniqueItems:
             used = []
             unique = [used.append(x) for x in data if x not in used]
             if len(unique) != len(data):
-                raise ValidationError('{0} 元素必须唯一'.format(title), 'uniqueItems')
+                raise ValidationError(message or '{0} 元素必须唯一'.format(title), 'uniqueItems')
         if not items:
             return True
         for i in data:
@@ -178,7 +179,7 @@ def data_validate(schema, data, top=True, name='', ref=None):
 
     if rtype == 'string':
         if not isinstance(data, basestring):
-            raise ValidationError('{0} 值必须是字符类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]))
+            raise ValidationError(message or '{0} 值必须是字符类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]))
         maxLength = schema.get('maxLength')
         minLength = schema.get('minLength')
         pattern = schema.get('pattern')
@@ -200,35 +201,35 @@ def data_validate(schema, data, top=True, name='', ref=None):
 
 
         if maxLength and len(data) > maxLength:
-            raise ValidationError('{0} 值长度不能大于{1}'.format(title, str(maxLength)), 'maxLength')
+            raise ValidationError(message or '{0} 值长度不能大于{1}'.format(title, str(maxLength)), 'maxLength')
         if minLength and len(data) < minLength:
-            raise ValidationError('{0} 值长度不能小于{1}'.format(title, str(minLength)), 'minLength')
+            raise ValidationError(message or '{0} 值长度不能小于{1}'.format(title, str(minLength)), 'minLength')
         if pattern and  not re.match(rule, data):
-            raise ValidationError('{0} 值不合理'.format(title), 'pattern')
+            raise ValidationError(message or '{0} 值不合理'.format(title), 'pattern')
 
         if not rformat:
             return True
 
         if rformat == 'alpha' and not data.isalpha():
-            raise ValidationError('{0} 值要求只包含英文字母'.format(title), 'format')
+            raise ValidationError(message or '{0} 值要求只包含英文字母'.format(title), 'format')
         if rformat == 'alnum' and not data.isalnum():
-            raise ValidationError('{0} 值要求只包含数字'.format(title), 'format')
+            raise ValidationError(message or '{0} 值要求只包含数字'.format(title), 'format')
         if rformat == 'email' and not re.match('[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$'):
-            raise ValidationError('{0} 值要求邮箱格式'.format(title), 'format')
+            raise ValidationError(message or '{0} 值要求邮箱格式'.format(title), 'format')
         if rformat == 'ipv4' and not re.match('^((0|[1-9]\d?|[0-1]\d{2}|2[0-4]\d|25[0-5])\.){3}(0|[1-9]\d?|[0-1]\d{2}|2[0-4]\d|25[0-5])$'):
-            raise ValidationError('{0} 值要求IPv4格式'.format(title), 'format')
+            raise ValidationError(message or '{0} 值要求IPv4格式'.format(title), 'format')
         if rformat == 'price' and not re.match('^[0-9]{1,8}(\.[0-9]{1,2}){0,1}$'):
-            raise ValidationError('{0} 值要求只包含数字和小数点'.format(title), 'format')
+            raise ValidationError(message or '{0} 值要求只包含数字和小数点'.format(title), 'format')
         if rformat == 'date':
             try:
                 datetime.datetime.strptime(data, '%Y-%m-%d')
             except ValueError:
-                raise ValidationError('{0} 值要求日期格式:YYYY-mm-dd'.format(title), 'format')
+                raise ValidationError(message or '{0} 值要求日期格式:YYYY-mm-dd'.format(title), 'format')
         if rformat == 'datetime':
             try:
                 datetime.datetime.strptime(data, '%Y-%m-%d %H:%M:%S')
             except ValueError:
-                raise ValidationError('{0} 值要求日期+时间格式:YYYY-mm-dd HH:MM:S'.format(title), 'format')
+                raise ValidationError(message or '{0} 值要求日期+时间格式:YYYY-mm-dd HH:MM:S'.format(title), 'format')
         if rformat == 'json':
             try:
                 json.loads(data)
@@ -244,15 +245,15 @@ def data_validate(schema, data, top=True, name='', ref=None):
 
     if rtype == 'boolean':
         if not isinstance(data, bool):
-            raise ValidationError('{0} 值必须是布尔类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
+            raise ValidationError(message or '{0} 值必须是布尔类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
         return True
 
     if rtype in ['integer', 'number']:
         if rtype == 'integer' and not isinstance(data, (int, long)):
-            raise ValidationError('{0} 值必须是整数, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
+            raise ValidationError(message or '{0} 值必须是整数, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
 
         if rtype == 'number' and not isinstance(data, (int, long, float, complex)):
-            raise ValidationError('{0} 值必须是数字, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
+            raise ValidationError(message or '{0} 值必须是数字, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
 
         maximum = schema.get('maximum')
         minimum = schema.get('minimum')
@@ -261,9 +262,9 @@ def data_validate(schema, data, top=True, name='', ref=None):
         if minimum and not isinstance(minimum, (int, long)):
             raise SchemaError('无效的数据模型:{0}'.format('minimum必须是数字'))
         if maximum and len(data) > maximum:
-            raise ValidationError('{0} 值不能大于{1}'.format(title, str(maximum)), 'maximum')
+            raise ValidationError(message or '{0} 值不能大于{1}'.format(title, str(maximum)), 'maximum')
         if minimum and len(data) < minimum:
-            raise ValidationError('{0} 值不能小于{1}'.format(title, str(minimum)), 'minimum')
+            raise ValidationError(message or '{0} 值不能小于{1}'.format(title, str(minimum)), 'minimum')
 
         return True
 
@@ -279,7 +280,7 @@ if __name__ == '__main__':
             'visible': {'type': 'boolean'},
             'desc': {'type': 'string', 'maxLength': 100, 'minLength': 0, 'title': '描述信息'},
             'default': {'type': 'integer'},
-            'order': {'type': 'integer', 'not': {'type': 'integer', 'enum': [12]}},
+            'order': {'type': 'integer', 'not': {'type': 'integer', 'enum': [12]}, 'message': '请输入整数值'},
             'id': {'enum': [1, 23, 3]},
             'permission2': {'type': 'string', 'format': 'json'},
             'permission': {'type': 'object',
