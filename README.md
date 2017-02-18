@@ -4,9 +4,9 @@
 
 使用JSON schema规则进行校验, 支持多数draft-4规则
 
-## Supported property 支持的属性列表
+## Supported property
 
-#### Type-specific keywords 基本类型
+#### Type-specific keywords
 
 - boolean
 - integer
@@ -16,40 +16,40 @@
 - array
 
 
-#### Generic keywords 通用关键字
+#### Generic keywords
 
 - title
 - enum
 - not
 - type
 
-#### Object keywords object类型关键字
+#### Object keywords
 
 - properties
 - maxProperties
 - minProperties
 - required
+- additionalProperties
 
-#### Array keywords array类型关键字
+#### Array keywords
 
 - items
-- additionalItems
 - maxItems
 - minItems
 - uniqueItems
 
-#### String keywords string类型关键字
+#### String keywords
 
 - maxLength
 - minLenght
 - pattern
 
-#### Number&Integer keywords 数字类型关键字
+#### Number&Integer
 
 - maximum
 - minimum
 
-#### Custom String Formater 自定义字符模式
+#### Custom String
 
 - ipv4
 - alnum
@@ -59,17 +59,23 @@
 - date
 - datetime
 - json
+- regex
 
-#### Nested Schema 嵌套Schema
+#### Combining schemas
+
+- anyOf
+
+#### Nested Schema Supported
 
 
 ## TODO
 
 - add `dependencies` support
-- add `Combining schemas` support
+- full `Combining schemas` support
 
 
-## Example 例子
+## Example
+
 ```python
 from gpyschema import ValidationError, SchemaError, data_validate
 schema = {
@@ -102,11 +108,18 @@ schema = {
             'minProperties': 1,
             'patternProperties': {
                 '^[a-zA-z]+$': '{{Schema}}',
-                '^[a-zA-Z]+\.[a-zA-Z]+$': '{{Schema}}'
-            }
+                '^[a-zA-Z]+\.[a-zA-Z]+$': {'type': 'array', 'minItems': 1}
+            },
+            'additionalProperties': False,
+        },
+        'any': {
+            'anyOf': [
+                {'type': 'string'},
+                {'type': 'integer'}
+            ]
         }
     },
-    'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order', 'id']
+    'required': ['name', 'cname', 'category', 'icon', 'visible', 'desc', 'order', 'id', 'any']
 }
 data = {
     'category': u'基础资源管理', 
@@ -120,11 +133,28 @@ data = {
     'icon': u'glyphicon glyphicon-sort', 
     'id': 23L, 
     'desc': u'',
-    'schema': {'xxxxxxxxx': {}}
+    'any': '111',
+    'schema': {
+        'c': {
+            'category': u'基础资源管理', 
+            'name': u'ip', 
+            'permission': {"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]},
+            'permission2': '{"c": ["admin"], "r": ["admin"], "u": ["admin"], "d": ["admin"]}',
+            'default': 1, 
+            'order': 1, 
+            'visible': True, 
+            'cname': u'ip地址段', 
+            'icon': u'glyphicon glyphicon-sort', 
+            'id': 23L, 
+            'desc': u'',
+            'any': 1.1
+        }
+    }
 }
+
 try:
-    data_validate(schema, data)
-    print '验证通过'
+    data_validate(schema, data, ref={'Schema': schema})
+    print 'validation pass'
 except (SchemaError, ValidationError) as e:
     print e
 ```
