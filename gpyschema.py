@@ -200,9 +200,9 @@ def data_validate(schema, data, top=True, name='', ref=None):
             raise SchemaError('无效的数据模型:{0}'.format('不支持的formatter'))
 
 
-        if maxLength and len(data) > maxLength:
+        if maxLength and len((unicode(str(data),"utf-8"))) > maxLength:
             raise ValidationError(message or '{0} 值长度不能大于{1}'.format(title, str(maxLength)), 'maxLength')
-        if minLength and len(data) < minLength:
+        if minLength and len((unicode(str(data),"utf-8"))) < minLength:
             raise ValidationError(message or '{0} 值长度不能小于{1}'.format(title, str(minLength)), 'minLength')
         if pattern and  not re.match(rule, data):
             raise ValidationError(message or '{0} 值不合理'.format(title), 'pattern')
@@ -229,7 +229,7 @@ def data_validate(schema, data, top=True, name='', ref=None):
             try:
                 datetime.datetime.strptime(data, '%Y-%m-%d %H:%M:%S')
             except ValueError:
-                raise ValidationError(message or '{0} 值要求日期+时间格式:YYYY-mm-dd HH:MM:S'.format(title), 'format')
+                raise ValidationError(message or '{0} 值要求日期+时间格式:YYYY-mm-dd HH:MM:SS'.format(title), 'format')
         if rformat == 'json':
             try:
                 json.loads(data)
@@ -261,9 +261,9 @@ def data_validate(schema, data, top=True, name='', ref=None):
             raise SchemaError('无效的数据模型:{0}'.format('maximum必须是数字'))
         if minimum and not isinstance(minimum, (int, long)):
             raise SchemaError('无效的数据模型:{0}'.format('minimum必须是数字'))
-        if maximum and len(data) > maximum:
+        if maximum and data > maximum:
             raise ValidationError(message or '{0} 值不能大于{1}'.format(title, str(maximum)), 'maximum')
-        if minimum and len(data) < minimum:
+        if minimum and data < minimum:
             raise ValidationError(message or '{0} 值不能小于{1}'.format(title, str(minimum)), 'minimum')
 
         return True
