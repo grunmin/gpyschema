@@ -214,11 +214,11 @@ def data_validate(schema, data, top=True, name='', ref=None):
             raise ValidationError(message or '{0} 值要求只包含英文字母'.format(title), 'format')
         if rformat == 'alnum' and not data.isalnum():
             raise ValidationError(message or '{0} 值要求只包含数字'.format(title), 'format')
-        if rformat == 'email' and not re.match('[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$'):
+        if rformat == 'email' and not re.match('[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$', data):
             raise ValidationError(message or '{0} 值要求邮箱格式'.format(title), 'format')
-        if rformat == 'ipv4' and not re.match('^((0|[1-9]\d?|[0-1]\d{2}|2[0-4]\d|25[0-5])\.){3}(0|[1-9]\d?|[0-1]\d{2}|2[0-4]\d|25[0-5])$'):
+        if rformat == 'ipv4' and not re.match('^((0|[1-9]\d?|[0-1]\d{2}|2[0-4]\d|25[0-5])\.){3}(0|[1-9]\d?|[0-1]\d{2}|2[0-4]\d|25[0-5])$', data):
             raise ValidationError(message or '{0} 值要求IPv4格式'.format(title), 'format')
-        if rformat == 'price' and not re.match('^[0-9]{1,8}(\.[0-9]{1,2}){0,1}$'):
+        if rformat == 'price' and not re.match('^[0-9]{1,8}(\.[0-9]{1,2}){0,1}$', data):
             raise ValidationError(message or '{0} 值要求只包含数字和小数点'.format(title), 'format')
         if rformat == 'date':
             try:
