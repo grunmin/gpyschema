@@ -268,6 +268,10 @@ def data_validate(schema, data, top=True, name='', ref=None):
 
         return True
 
+    if rtype == 'null':
+        if data is not None:
+            raise ValidationError(message or '{0} 值必须是None, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type')
+        return True
 
 if __name__ == '__main__':
     schema = {
