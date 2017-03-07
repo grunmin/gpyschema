@@ -84,9 +84,9 @@ def data_validate(schema, data, top=True, name='', ref=None):
         if not isinstance(data, dict):
             raise ValidationError(message or '{0} 值必须是字典, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
 
-        properties = schema.get('properties')
-        if not properties or not isinstance(properties, dict):
-            raise SchemaError('无效的数据模型:{0}'.format('object必须有properties定义'))
+        properties = schema.get('properties', {})
+        if not isinstance(properties, dict):
+            raise SchemaError('无效的数据模型:{0}'.format('无效的properties定义'))
         maxProperties = schema.get('maxProperties')
         minProperties = schema.get('minProperties')
         dependencies = schema.get('dependencies')
@@ -135,7 +135,7 @@ def data_validate(schema, data, top=True, name='', ref=None):
                     data_validate(patternProperties[p], value, top=False, name=key, ref=ref)
                 if matchList:
                     continue
-            if additionalProperties is None and key not in properties.keys():
+            if additionalProperties is not False and key not in properties.keys():
                 continue
             if additionalProperties is False and key not in properties.keys():
                 raise ValidationError(message or '{0}不是有效的属性名'.format(str(key)), 'additionalProperties', title)

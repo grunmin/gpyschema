@@ -14,6 +14,7 @@
 - string
 - object
 - array
+- null
 
 
 #### Generic keywords
@@ -41,7 +42,7 @@
 #### String keywords
 
 - maxLength
-- minLenght
+- minLength
 - pattern
 
 #### Number&Integer
