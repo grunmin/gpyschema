@@ -219,21 +219,25 @@ class GpySchema(object):
                     raise ValidationError(message or '{0}必须包含属性{1}'.format(title, ','.join(miss)), 'required', title)
 
             patternList = patternProperties.keys() if patternProperties else []
+
+            for key, value in properties.items():
+                if key in data.keys():
+                    self.validate(value, data[key], name=key)
+
             for key, value in data.items():
+                if key in properties.keys():
+                    continue
+                if additionalProperties is False:
+                    raise ValidationError(message or '{0}不是有效的属性名'.format(str(key)), 'additionalProperties', title)
                 if patternList:
                     matchList = [p for p in patternList if re.match(p, key)]
                     for p in matchList:
                         self.validate(patternProperties[p], value, name=key)
                     if matchList:
                         continue
-                if additionalProperties is not False and key not in properties.keys():
-                    continue
-                if additionalProperties is False and key not in properties.keys():
-                    raise ValidationError(message or '{0}不是有效的属性名'.format(str(key)), 'additionalProperties', title)
-                if additionalProperties and key not in properties.keys():
+                if additionalProperties:
                     self.validate(additionalProperties, value, name=key)
                     continue
-                self.validate(properties[key], value, name=key)
             return True
 
         elif rtype == 'array':
@@ -338,13 +342,13 @@ class GpySchema(object):
             return True
 
 
-class RequestValidationError(Exception):
+class DataValidationError(Exception):
 
     def __init__(self, value):
         Exception.__init__(self, value)
 
 
-class RequestValidation(object):
+class DataValidation(object):
 
     def __init__(self):
         self.schema_dict = {}
@@ -354,13 +358,13 @@ class RequestValidation(object):
         try:
             validator.validate(data=data)
         except ValidationError as e:
-            raise RequestValidationError(e.message)
+            raise DataValidationError(e.message)
 
 
     def __get_validator(self, schema, ref):
         schema_text = str(schema)
         if self.schema_dict.get(schema_text) is False:
-            raise RequestValidationError('系统配置错误, 请联系管理员')
+            raise DataValidationError('系统配置错误, 请联系管理员')
         elif self.schema_dict.get(schema_text) is None:
             validator = GpySchema(schema, ref)
             try:
@@ -369,10 +373,10 @@ class RequestValidation(object):
                 import uniout
                 print e.message, e
                 self.schema_dict[schema_text] = False
-                raise RequestValidationError('系统配置错误, 请联系管理员')
+                raise DataValidationError('系统配置错误, 请联系管理员')
             self.schema_dict[schema_text] = validator
         else:
             validator = self.schema_dict.get(schema_text)
         return validator
 
-rv = RequestValidation()
+dv = DataValidation()
