@@ -36,9 +36,8 @@ class GpySchema(object):
     def check_schema(self, schema=None, top=True):
         schema = schema or self.schema
         ref = self.ref
-        print schema
         if not isinstance(schema, dict) or not schema:
-            raise SchemaError('无效的数据模型:{0}'.format('schema必须是非空字典'))
+            raise SchemaError('无效的数据模型:{0}, 您输入的是{1}'.format('schema必须是非空字典', schema))
 
         rtype = schema.get('type')
         enum = schema.get('enum')
@@ -46,7 +45,6 @@ class GpySchema(object):
         anyOf = schema.get('anyOf')
         message = schema.get('message')
         _ref = schema.get('$ref')
-        print 'rtype', rtype, _ref
         if not rtype and not _ref and not anyOf:
             raise SchemaError('无效的数据模型:{0}'.format('必须指定类型或$ref'))
 
@@ -80,7 +78,6 @@ class GpySchema(object):
             raise SchemaError('无效的数据模型:{0}'.format('anyOf只能是列表'))
         if anyOf:
             for rschema in anyOf:
-                print rschema, 'anyOf'
                 self.check_schema(rschema, top=False)
 
         if rtype == 'object':
@@ -122,16 +119,25 @@ class GpySchema(object):
         elif rtype == 'array':
             items = schema.get('items')
             if items:
-                self.check_schema(items, top=False)
+                if isinstance(items, dict):
+                    self.check_schema(items, top=False)
+                elif isinstance(items, list):
+                    for item in items:
+                        self.check_schema(item, top=False)
+                else:
+                    raise SchemaError('无效的数据模型:{0}'.format('items类型无效'))
             maxItems = schema.get('maxItems')
             minItems = schema.get('minItems')
             uniqueItems = schema.get('uniqueItems')
+            additionalItems = schema.get('additionalItems')
             if maxItems and not isinstance(maxItems, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('maxItems必须是数字'))
             if minItems and not isinstance(minItems, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('minItems必须是数字'))
             if uniqueItems and not isinstance(uniqueItems, bool):
                 raise SchemaError('无效的数据模型:{0}'.format('uniqueItems必须是布尔值'))
+            if additionalItems:
+                self.check_schema(additionalItems, top=False)
 
         if rtype == 'string':
             maxLength = schema.get('maxLength')
@@ -161,7 +167,7 @@ class GpySchema(object):
             if minimum and not isinstance(minimum, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('minimum必须是数字'))
 
-    def validate(self, schema=None, data=None, name='', ref=None):
+    def validate(self, schema=None, data=None, name='', strict=True):
         schema = schema or self.schema
 
         rtype = schema.get('type')
@@ -170,6 +176,7 @@ class GpySchema(object):
         rnot = schema.get('not')
         anyOf = schema.get('anyOf')
         message = schema.get('message')
+        _ref = schema.get('$ref')
         if message:
             message = message.format(name = title, value = data, title = title, data = data)
 
@@ -178,7 +185,7 @@ class GpySchema(object):
 
         if rnot:
             try:
-                correct = self.validate(rnot, data, name=title)
+                correct = self.validate(rnot, data, name=title, strict=strict)
             except ValidationError:
                 correct = None
             if correct:
@@ -190,12 +197,18 @@ class GpySchema(object):
                 if correct is not None:
                     continue
                 try:
-                    correct = self.validate(rschema, data, name=title)
+                    self.validate(rschema, data, name=title, strict=strict)
+                    correct = True
                 except ValidationError:
                     correct = None
             if correct is None:
                 raise ValidationError(message or '{0} 值 {1} 不合理或格式错误'.format(title, data), 'anyOf', title)
             return True
+
+        if _ref:
+            rschema = self.ref.get(_ref)
+            self.validate(rschema, data, name=title, strict=strict)
+
 
         if rtype == 'object':
             if not isinstance(data, dict):
@@ -219,35 +232,39 @@ class GpySchema(object):
                     raise ValidationError(message or '{0}必须包含属性{1}'.format(title, ','.join(miss)), 'required', title)
 
             patternList = patternProperties.keys() if patternProperties else []
-
             for key, value in properties.items():
                 if key in data.keys():
-                    self.validate(value, data[key], name=key)
+                    self.validate(value, data[key], name=key, strict=strict)
 
             for key, value in data.items():
                 if key in properties.keys():
                     continue
-                if additionalProperties is False:
-                    raise ValidationError(message or '{0}不是有效的属性名'.format(str(key)), 'additionalProperties', title)
                 if patternList:
                     matchList = [p for p in patternList if re.match(p, key)]
                     for p in matchList:
-                        self.validate(patternProperties[p], value, name=key)
+                        self.validate(patternProperties[p], value, name=key, strict=strict)
                     if matchList:
                         continue
                 if additionalProperties:
-                    self.validate(additionalProperties, value, name=key)
+                    self.validate(additionalProperties, value, name=key, strict=strict)
                     continue
+                if additionalProperties is False:
+                    raise ValidationError(message or '{0}不是有效的属性名'.format(str(key)), 'additionalProperties', title)
             return True
 
         elif rtype == 'array':
-            if not isinstance(data, (list, tuple)):
-                raise ValidationError(message or '{0} 值必须是列表或元组类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+            if strict:
+                if not isinstance(data, list):
+                    raise ValidationError(message or '{0} 值必须是列表, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+            else:
+                if not isinstance(data, (list, tuple)):
+                    raise ValidationError(message or '{0} 值必须是列表或元组, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
 
             items = schema.get('items')
             maxItems = schema.get('maxItems')
             minItems = schema.get('minItems')
             uniqueItems = schema.get('uniqueItems')
+            additionalItems = schema.get('additionalItems')
             if maxItems and len(data) > maxItems:
                 raise ValidationError(message or '{0} 元素数量不能大于{1}'.format(title, str(maxItems)), 'maxItems', title)
             if minItems and len(data) < minItems:
@@ -257,10 +274,29 @@ class GpySchema(object):
                 unique = [used.append(x) for x in data if x not in used]
                 if len(unique) != len(data):
                     raise ValidationError(message or '{0} 元素必须唯一'.format(title), 'uniqueItems', title)
-            if not items:
-                return True
-            for i in data:
-                self.validate(items, i, name=title)
+
+
+            if isinstance(items, dict):
+                for i in data:
+                    self.validate(items, i, name=title, strict=strict)
+            elif isinstance(items, list):
+                item_len = len(items)
+                if additionalItems is False:
+                    if len(data) > item_len:
+                        raise ValidationError(message or '{0} 元素数量超过规定值'.format(title), 'additionalItems', title)
+                elif additionalItems:
+                    for i in data[item_len:]:
+                        self.validate(additionalItems, i, name=title, strict=strict)
+                for index, i in enumerate(data[:item_len]):
+                    self.validate(items[index], i, name=title, strict=strict)
+            else:
+                item_len = 0
+                if additionalItems is False:
+                    if len(data) > item_len:
+                        raise ValidationError(message or '{0} 元素数量超过规定值'.format(title), 'additionalItems', title)
+                elif additionalItems:
+                    for i in data[item_len:]:
+                        self.validate(additionalItems, i, name=title, strict=strict)
 
             return True
 
@@ -316,16 +352,31 @@ class GpySchema(object):
             return True
 
         if rtype == 'boolean':
-            if not isinstance(data, bool):
-                raise ValidationError(message or '{0} 值必须是布尔类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+            if strict:
+                if not isinstance(data, bool):
+                    raise ValidationError(message or '{0} 值必须是布尔类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+            else:
+                if data not in [True, False, 0, 1]:
+                    raise ValidationError(message or '{0} 值必须是布尔类型, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+
             return True
 
         if rtype in ['integer', 'number']:
-            if rtype == 'integer' and not isinstance(data, (int, long)):
-                raise ValidationError(message or '{0} 值必须是整数, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+            if strict:
+                if rtype == 'integer' and not isinstance(data, (int, long)):
+                    raise ValidationError(message or '{0} 值必须是整数, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
 
-            if rtype == 'number' and not isinstance(data, (int, long, float, complex)):
-                raise ValidationError(message or '{0} 值必须是数字, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+                if rtype == 'number' and not isinstance(data, (int, long, float, complex)):
+                    raise ValidationError(message or '{0} 值必须是数字, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+            else:
+                if rtype == 'integer' and not (isinstance(data, (int, long)) or (isinstance(data, basestring) and data.isdigit())):
+                    raise ValidationError(message or '{0} 值必须是整数或整数字符, 您输入的是 {1}'.format(title, data, 'type', title))
+
+                if rtype == 'number':
+                    try:
+                        float(data)
+                    except ValueError:
+                        raise ValidationError(message or '{0} 值必须是数字或数字字符, 您输入的是 {1}'.format(title, data), 'type', title)
 
             maximum = schema.get('maximum')
             minimum = schema.get('minimum')
@@ -337,8 +388,13 @@ class GpySchema(object):
             return True
 
         if rtype == 'null':
-            if data is not None:
-                raise ValidationError(message or '{0} 值必须是None, 您输入的是{1}'.format(title, str(type(data))[6:-1]), 'type', title)
+            if strict:
+                if data is not None:
+                    raise ValidationError(message or '{0} 值必须是None, 您输入的是 {1}'.format(title, str(type(data))[6:-1]), 'type', title)
+            else:
+                if data is not None and data != '':
+                    raise ValidationError(message or '{0} 值必须是空值, 您输入的是 {1}'.format(title, data), 'type', title)
+
             return True
 
 
@@ -353,25 +409,73 @@ class DataValidation(object):
     def __init__(self):
         self.schema_dict = {}
 
-    def validate(self, schema, data, ref=None):
-        validator = self.__get_validator(schema, ref)
+    def validate(self, schema, data, ref=None, strict=True):
+        validator = self.__get_validator(schema, ref=ref)
         try:
-            validator.validate(data=data)
+            validator.validate(data=data, strict=strict)
         except ValidationError as e:
             raise DataValidationError(e.message)
 
 
-    def __get_validator(self, schema, ref):
+    def form_data(self, schema, data):
+        validator = self.__get_validator(schema, ref=None, top=False)
+        new = {}
+        cache = {}
+        for key, value in schema['properties'].items():
+            title = value.get('title') or key
+            if key not in data.keys():
+                cache[key] = None
+                continue
+            if value['type'] == 'array':
+                if len(data[key]) < 1:
+                    new[key] = []
+                    continue
+                items = value.get('items')
+                if items and items.get('type') == 'number':
+                    try:
+                        new[key] = [int(i) for i in data[key]]
+                        continue
+                    except:
+                        raise DataValidationError('不合理的值 {0},  {1}必须是数字'.format(','.join(data[key]), title))
+                new[key] = data[key]
+            elif value['type'] in ['string', 'number']:
+                if len(data[key]) < 1:
+                    new[key] = None
+                    continue
+                if value['type'] == 'number':
+                    if len(data[key][0]) < 1:
+                        cache[key] = None
+                        continue
+                    try:
+                        new[key] = int(data[key][0])
+                        continue
+                    except:
+                        raise DataValidationError('不合理的值 {0}, {1}必须是数字'.format(','.join(data[key]), title))
+                new[key] = data[key][0]
+            elif value['type'] == 'object':
+                if len(data[key]) < 1:
+                    new[key] = None
+                    continue
+                try:
+                    new[key] = json.loads(data[key][0])
+                except:
+                    raise DataValidationError('{0} 字段格式错误'.format(title))
+        self.validate(schema, new)
+        new.update(cache)
+        return new
+
+
+    def __get_validator(self, schema, ref, top=True):
         schema_text = str(schema)
         if self.schema_dict.get(schema_text) is False:
             raise DataValidationError('系统配置错误, 请联系管理员')
         elif self.schema_dict.get(schema_text) is None:
             validator = GpySchema(schema, ref)
             try:
-                validator.check_schema(top=True)
+                validator.check_schema(top=top)
+                # log.debug('gen validator and check pass. schema is {0}'.format(schema_text))
             except SchemaError as e:
-                import uniout
-                print e.message, e
+                # log.error('schema check failed, error message is {0}. Schema is {1}'.format(e.message, schema))
                 self.schema_dict[schema_text] = False
                 raise DataValidationError('系统配置错误, 请联系管理员')
             self.schema_dict[schema_text] = validator
