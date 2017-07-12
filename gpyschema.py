@@ -265,9 +265,9 @@ class GpySchema(object):
             minItems = schema.get('minItems')
             uniqueItems = schema.get('uniqueItems')
             additionalItems = schema.get('additionalItems')
-            if maxItems and len(data) > maxItems:
+            if isinstance(maxItems, int) and len(data) > maxItems:
                 raise ValidationError(message or '{0} 元素数量不能大于{1}'.format(title, str(maxItems)), 'maxItems', title)
-            if minItems and len(data) < minItems:
+            if isinstance(minItems, int) and len(data) < minItems:
                 raise ValidationError(message or '{0} 元素数量不能小于{1}'.format(title, str(minItems)), 'minItems', title)
             if uniqueItems:
                 used = []
@@ -308,9 +308,9 @@ class GpySchema(object):
             pattern = schema.get('pattern')
             rformat = schema.get('format')
 
-            if maxLength and len((unicode(str(data),"utf-8"))) > maxLength:
+            if isinstance(maxLength, int) and len((unicode(str(data),"utf-8"))) > maxLength:
                 raise ValidationError(message or '{0} 值长度不能大于{1}'.format(title, str(maxLength)), 'maxLength', title)
-            if minLength and len((unicode(str(data),"utf-8"))) < minLength:
+            if isinstance(minLength, int) and len((unicode(str(data),"utf-8"))) < minLength:
                 raise ValidationError(message or '{0} 值长度不能小于{1}'.format(title, str(minLength)), 'minLength', title)
             if pattern and  not re.match(rule, data):
                 raise ValidationError(message or '{0} 值不合理'.format(title), 'pattern', title)
@@ -380,9 +380,9 @@ class GpySchema(object):
 
             maximum = schema.get('maximum')
             minimum = schema.get('minimum')
-            if maximum and data > maximum:
+            if isinstance(maximum, int) and data > maximum:
                 raise ValidationError(message or '{0} 值不能大于{1}'.format(title, str(maximum)), 'maximum', title)
-            if minimum and data < minimum:
+            if isinstance(minimum, int) and data < minimum:
                 raise ValidationError(message or '{0} 值不能小于{1}'.format(title, str(minimum)), 'minimum', title)
 
             return True
