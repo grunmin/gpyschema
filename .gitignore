@@ -1,1 +1,3 @@
 *.pyc
+gpyschema/tests/reports
+.vscode

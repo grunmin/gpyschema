@@ -28,7 +28,7 @@ class SchemaError(GpySchemaError):
 
 class GpySchema(object):
 
-    def __init__(self, schema, ref=None):
+    def __init__(self, schema=None, ref=None):
         self.schema = schema
         self.ref = ref or {}
         self.checked = []
