@@ -1,3 +1,4 @@
 *.pyc
-gpyschema/tests/reports
+gpyschema/.coverage
+gpyschema/htmlcov
 .vscode

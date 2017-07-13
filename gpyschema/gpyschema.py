@@ -34,7 +34,7 @@ class GpySchema(object):
         self.checked = []
 
     def check_schema(self, schema=None, top=True):
-        schema = schema or self.schema
+        schema = schema if schema is not None else self.schema
         ref = self.ref
         if not isinstance(schema, dict) or not schema:
             raise SchemaError('无效的数据模型:{0}, 您输入的是{1}'.format('schema必须是非空字典', schema))
@@ -48,7 +48,7 @@ class GpySchema(object):
         if not rtype and not _ref and not anyOf:
             raise SchemaError('无效的数据模型:{0}'.format('必须指定类型或$ref'))
 
-        if rtype and rtype not in ['boolean', 'null', 'integer', 'number', 'string' ,'array', 'object']:
+        if rtype is not None and rtype not in ['boolean', 'null', 'integer', 'number', 'string' ,'array', 'object']:
             raise SchemaError('无效的数据模型:{0} {1}'.format('无效的类型', rtype))
 
         if _ref is not None:
@@ -61,27 +61,29 @@ class GpySchema(object):
                 self.checked.append(_ref)
                 self.check_schema(ref.get(_ref), top=False)
 
-        if message:
+        if message is not None:
             if not isinstance(message, basestring):
                 raise SchemaError('无效的数据模型:{0}'.format('自定义消息必须是有效的文本'))
 
 
-        if enum and not isinstance(enum, list):
+        if enum is not None and not isinstance(enum, list):
             raise SchemaError('无效的数据模型:{0}'.format('枚举值必须通过列表传入'))
 
-        if rnot and not isinstance(rnot, dict):
+        if rnot is not None and not isinstance(rnot, dict):
             raise SchemaError('无效的数据模型:{0}'.format('not只能是字典'))
-        if rnot:
+        if rnot is not None:
             self.check_schema(rnot, top=False)
 
         if anyOf and not isinstance(anyOf, list):
             raise SchemaError('无效的数据模型:{0}'.format('anyOf只能是列表'))
-        if anyOf:
+        if anyOf is not None:
             for rschema in anyOf:
                 self.check_schema(rschema, top=False)
 
         if rtype == 'object':
             properties = schema.get('properties')
+            if properties is not None and (not isinstance(properties, object) or not properties):
+                raise SchemaError('无效的数据模型:{0}'.format('properties必须是非空字典'))
             if properties:
                 for key, value in properties.items():
                     if not key or not isinstance(key, basestring):
@@ -94,18 +96,18 @@ class GpySchema(object):
             additionalProperties = schema.get('additionalProperties')
             required = schema.get('required')
 
-            if maxProperties and not isinstance(maxProperties, (int, long)):
+            if maxProperties is not None and not isinstance(maxProperties, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('maxProperties必须是数字'))
-            if minProperties and not isinstance(minProperties, (int, long)):
+            if minProperties is not None and not isinstance(minProperties, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('minProperties必须是数字'))
-            if required and not isinstance(required, list):
+            if required is not None and not isinstance(required, list):
                 raise SchemaError('无效的数据模型:{0}'.format('required必须是列表'))
-            if required and [i for i in required if i not in properties.keys()]:
+            if required is not None and [i for i in required if i not in properties.keys()]:
                 raise SchemaError('无效的数据模型:{0}'.format('required中的元素必须在properties中定义'))
-            if additionalProperties:
+            if additionalProperties is not None:
                 self.check_schema(additionalProperties, top=False)
-            if patternProperties and not isinstance(patternProperties, dict):
-                raise SchemaError('无效的数据模型:{0}'.format('patternProperties必须是字典'))
+            if patternProperties is not None and (not isinstance(patternProperties, dict) or not patternProperties):
+                raise SchemaError('无效的数据模型:{0}'.format('patternProperties必须是非空字典'))
             if patternProperties:
                 for pattern, value in patternProperties.items():
                     if not isinstance(pattern, basestring):
@@ -118,10 +120,12 @@ class GpySchema(object):
 
         elif rtype == 'array':
             items = schema.get('items')
-            if items:
+            if items is not None:
                 if isinstance(items, dict):
                     self.check_schema(items, top=False)
                 elif isinstance(items, list):
+                    if not items:
+                        raise SchemaError('无效的数据模型:{0}'.format('items不能为空列表'))
                     for item in items:
                         self.check_schema(item, top=False)
                 else:
@@ -130,9 +134,9 @@ class GpySchema(object):
             minItems = schema.get('minItems')
             uniqueItems = schema.get('uniqueItems')
             additionalItems = schema.get('additionalItems')
-            if maxItems and not isinstance(maxItems, (int, long)):
+            if maxItems is not None and not isinstance(maxItems, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('maxItems必须是数字'))
-            if minItems and not isinstance(minItems, (int, long)):
+            if minItems is not None and not isinstance(minItems, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('minItems必须是数字'))
             if uniqueItems and not isinstance(uniqueItems, bool):
                 raise SchemaError('无效的数据模型:{0}'.format('uniqueItems必须是布尔值'))
@@ -145,9 +149,9 @@ class GpySchema(object):
             pattern = schema.get('pattern')
             rformat = schema.get('format')
 
-            if maxLength and not isinstance(maxLength, (int, long)):
+            if maxLength is not None and not isinstance(maxLength, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('maxLength必须是数字'))
-            if minLength and not isinstance(minLength, (int, long)):
+            if minLength is not None and not isinstance(minLength, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('minLength必须是数字'))
             if pattern:
                 if not isinstance(pattern, basestring):
@@ -162,9 +166,9 @@ class GpySchema(object):
         if rtype in ['integer', 'number']:
             maximum = schema.get('maximum')
             minimum = schema.get('minimum')
-            if maximum and not isinstance(maximum, (int, long)):
+            if maximum is not None and not isinstance(maximum, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('maximum必须是数字'))
-            if minimum and not isinstance(minimum, (int, long)):
+            if minimum is not None and not isinstance(minimum, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('minimum必须是数字'))
 
     def validate(self, schema=None, data=None, name='', strict=True):
