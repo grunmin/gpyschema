@@ -42,6 +42,35 @@ class TestSchema(unittest.TestCase):
 
 class TestValidator(unittest.TestCase):
 
+    def test_not(self):
+        with self.assertRaises(ValidationError):
+            GpySchema().validate({
+                'type': 'array',
+                'items': {'not': {'type': 'number'}}
+            }, [2])
+        with self.assertRaises(ValidationError):
+            GpySchema().validate({
+                'type': 'array',
+                'items': {'type': 'string', 'not': {'type': 'string', 'enum': ['1']}}
+            }, ['1'])
+        self.assertEqual(GpySchema().validate({
+                'type': 'array',
+                'items': {'type': 'string', 'not': {'type': 'string', 'enum': ['1']}}
+            }, ['2']), True)
+    
+    def test_anyOf(self):
+        with self.assertRaises(ValidationError):
+            GpySchema().validate({
+                'type': 'array',
+                'items': {'anyOf': [{'type': 'number'}]}
+            }, [2, '3'])
+        self.assertEqual(GpySchema().validate({
+                'type': 'array',
+                'items': {'anyOf': [{'type': 'number'}, {'type': 'object'}]}
+            }, [2, {}]), True)
+        
+
+    
     def test_object(self):
         self.assertEqual(GpySchema().validate({'type': 'object'}, {}), True)
 
@@ -121,7 +150,19 @@ class TestValidator(unittest.TestCase):
                 'type': 'array',
                 'items': [{'type': 'string'}, {'type': 'number'}]
             }, ['1', 2]), True)
-        
+
+        # enum
+        with self.assertRaises(ValidationError):
+            GpySchema().validate({
+                'type': 'array',
+                'items': {'enum': [1, 2, '3']}
+            }, (1, 2, 3))
+        self.assertEqual(GpySchema().validate({
+                'type': 'array',
+                'items': {'enum': [1, 2, '3']}
+            }, [1, 2, '3']), True)
+
+
         # additionalItems
         with self.assertRaises(ValidationError):
             GpySchema().validate({
@@ -150,7 +191,6 @@ class TestValidator(unittest.TestCase):
                     'type': 'object'
                 }
             }, ['1', 2, '3'])
-        
         self.assertEqual(GpySchema().validate({
                 'type': 'array',
                 'items': [{'type': 'string'}, {'type': 'number'}],
