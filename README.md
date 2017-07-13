@@ -44,6 +44,7 @@
 - maxLength
 - minLength
 - pattern
+- format
 
 #### Number&Integer
 
@@ -55,6 +56,8 @@
 - ipv4
 - alnum
 - alpha
+- numeric
+- digit
 - email
 - price
 - date
@@ -78,7 +81,7 @@
 ## Example
 
 ```python
-from gpyschema import ValidationError, SchemaError, data_validate
+from gpyschema import ValidationError, SchemaError, dv
 schema = {
     'type': 'object',
     'properties': {
@@ -103,12 +106,12 @@ schema = {
         },
         'schema': {'type': 'object', 
             'properties': {
-                '_and': '#Schema',
+                '_and': {'$ref': 'Schema'},
                 'c': {'type': 'array', 'minItems': 1},
             },
             'minProperties': 1,
             'patternProperties': {
-                '^[a-zA-z]+$': '#Schema',
+                '^[a-zA-z]+$': {'$ref': 'Schema'},
                 '^[a-zA-Z]+\.[a-zA-Z]+$': {'type': 'array', 'minItems': 1}
             },
             'additionalProperties': False,
@@ -154,7 +157,7 @@ data = {
 }
 
 try:
-    data_validate(schema, data, ref={'Schema': schema})
+    dv.validate(schema, data, ref={'Schema': schema})
     print 'validation pass'
 except (SchemaError, ValidationError) as e:
     print e
