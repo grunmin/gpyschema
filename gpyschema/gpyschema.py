@@ -222,9 +222,9 @@ class GpySchema(object):
             additionalProperties = schema.get('additionalProperties')
             required = schema.get('required')
 
-            if maxProperties and len(data) > maxProperties:
+            if isinstance(maxProperties, int) and len(data) > maxProperties:
                 raise ValidationError(message or '{0} 属性数量不能大于{1}'.format(title, str(maxProperties)), 'maxProperties', title)
-            if minProperties and len(data) < minProperties:
+            if isinstance(minProperties, int) and len(data) < minProperties:
                 raise ValidationError(message or '{0} 属性数量不能小于{1}'.format(title, str(minProperties)), 'minProperties', title)
             if required:
                 miss = [i for i in required if i not in data.keys()]
