@@ -51,7 +51,7 @@ class GpySchema(object):
         if rtype and rtype not in ['boolean', 'null', 'integer', 'number', 'string' ,'array', 'object']:
             raise SchemaError('无效的数据模型:{0} {1}'.format('无效的类型', rtype))
 
-        if _ref:
+        if _ref is not None:
             if not isinstance(_ref, basestring):
                 raise SchemaError('无效的数据模型:{0}'.format('$ref要求是字符'))
             if not ref.get(_ref):
@@ -156,7 +156,7 @@ class GpySchema(object):
                     rule = re.compile(pattern)
                 except:
                     raise SchemaError('无效的数据模型:{0}'.format('无法识别正则式'))
-            if rformat and rformat not in ['email', 'ipv4', 'alpha', 'alnum', 'date', 'datetime', 'price', 'json', 'regex']:
+            if rformat and rformat not in ['email', 'ipv4', 'alpha', 'alnum', 'digit','numeric', 'date', 'datetime', 'price', 'json', 'regex']:
                 raise SchemaError('无效的数据模型:{0}'.format('不支持的formatter'))
 
         if rtype in ['integer', 'number']:
@@ -312,7 +312,7 @@ class GpySchema(object):
                 raise ValidationError(message or '{0} 值长度不能大于{1}'.format(title, str(maxLength)), 'maxLength', title)
             if isinstance(minLength, int) and len((unicode(str(data),"utf-8"))) < minLength:
                 raise ValidationError(message or '{0} 值长度不能小于{1}'.format(title, str(minLength)), 'minLength', title)
-            if pattern and  not re.match(rule, data):
+            if pattern and  not re.match(pattern, data):
                 raise ValidationError(message or '{0} 值不合理'.format(title), 'pattern', title)
 
             if not rformat:
@@ -321,6 +321,10 @@ class GpySchema(object):
             if rformat == 'alpha' and not data.isalpha():
                 raise ValidationError(message or '{0} 值要求只包含英文字母'.format(title), 'format', title)
             if rformat == 'alnum' and not data.isalnum():
+                raise ValidationError(message or '{0} 值要求只包含数字和英文字母'.format(title), 'format', title)
+            if rformat == 'digit' and not data.isdigit():
+                raise ValidationError(message or '{0} 值要求只包含数字'.format(title), 'format', title)
+            if rformat == 'numeric' and not unicode(data).isnumeric():
                 raise ValidationError(message or '{0} 值要求只包含数字'.format(title), 'format', title)
             if rformat == 'email' and not re.match('[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$', data):
                 raise ValidationError(message or '{0} 值要求邮箱格式'.format(title), 'format', title)
