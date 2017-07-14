@@ -444,7 +444,7 @@ class DataValidation(object):
                         new[key] = [int(i) for i in data[key]]
                         continue
                     except:
-                        raise DataValidationError('不合理的值 {0},  {1}必须是数字'.format(','.join(data[key]), title))
+                        raise DataValidationError('不合理的值 {0}, {1}必须是数字'.format(','.join(data[key]), title))
                 new[key] = data[key]
             elif value['type'] in ['string', 'number']:
                 if len(data[key]) < 1:

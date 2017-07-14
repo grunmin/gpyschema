@@ -4,6 +4,8 @@
 
 使用JSON schema规则进行校验, 支持多数draft-4规则
 
+python2.6,2.7 Only
+
 ## Supported property
 
 #### Type-specific keywords
@@ -161,4 +163,17 @@ try:
     print 'validation pass'
 except (SchemaError, ValidationError) as e:
     print e
+```
+
+## Test
+
+```
+git clone https://github.com/grunmin/gpyschema.git
+cd gpyschema
+python -m unittest tests.test_gpyschema
+```
+
+If you want to know the coverage of tested code, install package coverage first, then run(in windows)
+```
+coverage.exe run --omit=./tests/test_* -m tests.test_gpyschema 
 ```

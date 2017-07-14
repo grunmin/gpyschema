@@ -1,4 +1,4 @@
 *.pyc
-gpyschema/.coverage
-gpyschema/htmlcov
+.coverage
+htmlcov
 .vscode

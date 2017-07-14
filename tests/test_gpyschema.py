@@ -3,12 +3,11 @@
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
-sys.path.append('..')
 
 import unittest
-import sys
+import mock
 
-from gpyschema.gpyschema import GpySchema, SchemaError, ValidationError
+from gpyschema.gpyschema import GpySchema, DataValidation, SchemaError, ValidationError, DataValidationError
 
 class TestSchema(unittest.TestCase):
 
@@ -721,6 +720,133 @@ class TestValidator(unittest.TestCase):
         self.assertEqual(GpySchema().validate({
                 'type': 'null',
             }, None), True)
+
+class TestDataValidation(unittest.TestCase):
+
+    def test_validate(self):
+        valid_schema = mock.Mock(return_value=GpySchema({'type': 'object'}))
+        invalid_schema = mock.Mock(side_effect = DataValidationError('系统配置错误, 请联系管理员'))
+
+        with mock.patch.object(DataValidation, '_DataValidation__get_validator', invalid_schema):
+            with self.assertRaises(DataValidationError):
+                DataValidation().validate({'type': 'array'}, [2])
+                self.assertTrue(DataValidation._DataValidation__get_validator.called)
+                self.assertEqual(DataValidation._DataValidation__get_validator.call_args[0], ({'type': 'array'}, ))
+
+        with mock.patch.object(DataValidation, '_DataValidation__get_validator', valid_schema):
+            with self.assertRaises(DataValidationError):
+                DataValidation().validate({'type': 'array'}, [2])
+        
+        with mock.patch.object(DataValidation, '_DataValidation__get_validator', valid_schema):
+            self.assertIsNone(DataValidation().validate({}, {'a': 'b'}))
+    
+    def test_get_validator(self):
+
+
+        with self.assertRaises(DataValidationError) as e:
+            DataValidation()._DataValidation__get_validator({'type': 'go'}, None)
+        self.assertEqual(str(e.exception), '系统配置错误, 请联系管理员')
+        # with self.assertRaises(DataValidationError):
+        #     dv._DataValidation__get_validator({'type': 'number'}, None)
+        
+        dv = DataValidation()
+        with self.assertRaises(DataValidationError):
+            dv.schema_dict = {str({'type': 'object'}): False}
+            dv._DataValidation__get_validator({'type': 'object'}, None)
+
+        dv.schema_dict = {}
+        self.assertIsInstance(dv._DataValidation__get_validator({'type': 'object'}, None), GpySchema)
+
+        self.assertIsInstance(dv._DataValidation__get_validator({'type': 'object'}, None), GpySchema)
+
+    def test_form_data(self):
+
+        # required
+        schema = {
+            'type': 'object', 
+            'properties':{
+                'name': {'title': '名字', 'type': 'string'}
+            },
+            'required': ['name']
+        }
+        with mock.patch.object(DataValidation, '_DataValidation__get_validator', mock.Mock(return_value=GpySchema(schema))):
+            with self.assertRaises(DataValidationError) as e:
+                DataValidation().form_data(schema, {})
+        
+        # title
+        # self.assertEqual(str(e.exception), '名字不能为空')
+
+        # not include
+        schema = {
+            'type': 'object', 
+            'properties':{
+                'name': {'title': '名字', 'type': 'string'},
+                'array': {'type': 'array'},
+                'object': {'type': 'object'}
+            },
+        }
+        with mock.patch.object(DataValidation, '_DataValidation__get_validator', mock.Mock(return_value=GpySchema(schema))):
+            self.assertIsNone(DataValidation().form_data(schema, {})['name'])
+            self.assertIsNone(DataValidation().form_data(schema, {})['array'])
+            self.assertIsNone(DataValidation().form_data(schema, {})['object'])
+
+        # array
+        schema = {
+            'type': 'object', 
+            'properties':{
+                'array': {'title': '列表', 'type': 'array', 'items': {'type': 'number'}},
+            },
+        }
+        with mock.patch.object(DataValidation, '_DataValidation__get_validator', mock.Mock(return_value=GpySchema(schema))):
+            self.assertEqual(DataValidation().form_data(schema, {'array': []}), {'array': []})
+            self.assertEqual(DataValidation().form_data(schema, {'array': ['1', '2']}), {'array': [1, 2]})
+            # 下方4个测试注释掉是因为tornado接收的用户请求参数都是列表, 所以不考察其他格式
+            # with self.assertRaises(DataValidationError) as e:
+            #     DataValidation().form_data(schema, {'array': {}})
+            # with self.assertRaises(DataValidationError) as e:
+            #     DataValidation().form_data(schema, {'array': {'a': 1}})
+            # with self.assertRaises(DataValidationError) as e:
+            #     DataValidation().form_data(schema, {'array': 2})
+            # with self.assertRaises(DataValidationError) as e:
+            #     DataValidation().form_data(schema, {'array': None})
+            with self.assertRaises(DataValidationError) as e:
+                DataValidation().form_data(schema, {'array': ['2', 'x']})
+            self.assertEqual(str(e.exception), '不合理的值 2,x, 列表必须是数字')
+
+        # string, number
+        schema = {
+            'type': 'object', 
+            'properties':{
+                'string': {'title': '字符', 'type': 'string'},
+                'number': {'title': '数字', 'type': 'number'},
+            },
+        }
+        with mock.patch.object(DataValidation, '_DataValidation__get_validator', mock.Mock(return_value=GpySchema(schema))):
+            self.assertEqual(DataValidation().form_data(schema, {}), {'string': None, 'number': None})
+            self.assertEqual(DataValidation().form_data(schema, {'string': ['aaa']}), {'string': 'aaa', 'number': None})
+            self.assertEqual(DataValidation().form_data(schema, {'string': ['bbbb', 'bbb']}), {'string': 'bbbb', 'number': None})
+            self.assertEqual(DataValidation().form_data(schema, {'number': ['12']}), {'number': 12, 'string': None})
+            self.assertEqual(DataValidation().form_data(schema, {'number': ['22', '12']}), {'number': 22, 'string': None})
+            self.assertEqual(DataValidation().form_data(schema, {'number': ['22', 'xx']}), {'number': 22, 'string': None})
+            with self.assertRaises(DataValidationError) as e:
+                DataValidation().form_data(schema, {'number': ['x', '2']})
+            self.assertEqual(str(e.exception), '不合理的值 x,2, 数字必须是数字')
+
+        # object
+        schema = {
+            'type': 'object', 
+            'properties':{
+                'object': {'title': '对象', 'type': 'object'},
+            },
+        }
+        with mock.patch.object(DataValidation, '_DataValidation__get_validator', mock.Mock(return_value=GpySchema(schema))):
+            self.assertEqual(DataValidation().form_data(schema, {}), {'object': None})
+            # self.assertEqual(DataValidation().form_data(schema, {'object': []}), {'object': None})
+            self.assertEqual(DataValidation().form_data(schema, {'object': ['{"a": 4}']}), {'object': {'a': 4}})
+            self.assertEqual(DataValidation().form_data(schema, {'object': ['{"a": 4}', '{"b": 4}']}), {'object': {'a': 4}})
+            with self.assertRaises(DataValidationError) as e:
+                DataValidation().form_data(schema, {'object': ['{"4": 4x}', '{"b": 4}']})
+
 
 if __name__ == '__main__':
     unittest.main()
