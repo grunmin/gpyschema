@@ -104,7 +104,7 @@ class GpySchema(object):
                 raise SchemaError('无效的数据模型:{0}'.format('required必须是列表'))
             if required is not None and [i for i in required if i not in properties.keys()]:
                 raise SchemaError('无效的数据模型:{0}'.format('required中的元素必须在properties中定义'))
-            if additionalProperties is not None:
+            if additionalProperties is not None and additionalProperties is not False:
                 self.check_schema(additionalProperties, top=False)
             if patternProperties is not None and (not isinstance(patternProperties, dict) or not patternProperties):
                 raise SchemaError('无效的数据模型:{0}'.format('patternProperties必须是非空字典'))
