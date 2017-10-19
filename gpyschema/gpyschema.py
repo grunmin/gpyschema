@@ -39,6 +39,7 @@ class GpySchema(object):
         if not isinstance(schema, dict) or not schema:
             raise SchemaError('无效的数据模型:{0}, 您输入的是{1}'.format('schema必须是非空字典', schema))
 
+        schema_valid_attr = ['type', 'enum', 'not', 'anyOf', 'message', '$ref', 'title']
         rtype = schema.get('type')
         enum = schema.get('enum')
         rnot = schema.get('not')
@@ -81,6 +82,7 @@ class GpySchema(object):
                 self.check_schema(rschema, top=False)
 
         if rtype == 'object':
+            schema_valid_attr.extend(['properties', 'maxProperties', 'minProperties', 'dependencied', 'patternProperties', 'additionalProperties', 'required'])
             properties = schema.get('properties')
             if properties is not None and (not isinstance(properties, object) or not properties):
                 raise SchemaError('无效的数据模型:{0}'.format('properties必须是非空字典'))
@@ -119,6 +121,7 @@ class GpySchema(object):
                     self.check_schema(value, top=False)
 
         elif rtype == 'array':
+            schema_valid_attr.extend(['items', 'maxItems', 'minItems', 'uniqueItems', 'additionalItems'])
             items = schema.get('items')
             if items is not None:
                 if isinstance(items, dict):
@@ -144,6 +147,7 @@ class GpySchema(object):
                 self.check_schema(additionalItems, top=False)
 
         if rtype == 'string':
+            schema_valid_attr.extend(['maxLength', 'minLength', 'pattern', 'format'])
             maxLength = schema.get('maxLength')
             minLength = schema.get('minLength')
             pattern = schema.get('pattern')
@@ -164,12 +168,17 @@ class GpySchema(object):
                 raise SchemaError('无效的数据模型:{0}'.format('不支持的formatter'))
 
         if rtype in ['integer', 'number']:
+            schema_valid_attr.extend(['maximum', 'minimum'])
             maximum = schema.get('maximum')
             minimum = schema.get('minimum')
             if maximum is not None and not isinstance(maximum, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('maximum必须是数字'))
             if minimum is not None and not isinstance(minimum, (int, long)):
                 raise SchemaError('无效的数据模型:{0}'.format('minimum必须是数字'))
+        
+        for attr in schema:
+            if attr not in schema_valid_attr:
+                raise SchemaError('无效的数据模型: 不能识别的模式 {0} '.format(attr))
 
     def validate(self, schema=None, data=None, name='', strict=True):
         schema = schema or self.schema
