@@ -1,15 +1,18 @@
 # -*- coding:utf-8 -*-
-import re
-import datetime
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
+
+import re
+import datetime
+import logging
 
 try:
     import simplejson as json
 except ImportError:
     import json
 
+log = logging.getLogger(__name__)
 
 class GpySchemaError(Exception):
     def __init__(self, message, cause='', schema=None, instance=None):
@@ -488,14 +491,15 @@ class DataValidation(object):
     def __get_validator(self, schema, ref, top=True):
         schema_text = str(schema)
         if self.schema_dict.get(schema_text) is False:
+            log.warning('Invalid schema, check the error message shown before for more detail')
             raise DataValidationError('系统配置错误, 请联系管理员')
         elif self.schema_dict.get(schema_text) is None:
             validator = GpySchema(schema, ref)
             try:
                 validator.check_schema(top=top)
-                # log.debug('gen validator and check pass. schema is {0}'.format(schema_text))
+                log.debug('gen validator and check pass. schema is {0}'.format(schema_text))
             except SchemaError as e:
-                # log.error('schema check failed, error message is {0}. Schema is {1}'.format(e.message, schema))
+                log.error('schema check failed, error message is {0}. Schema is {1}'.format(e.message, schema))
                 self.schema_dict[schema_text] = False
                 raise DataValidationError('系统配置错误, 请联系管理员')
             self.schema_dict[schema_text] = validator
