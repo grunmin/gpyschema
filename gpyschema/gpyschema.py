@@ -18,6 +18,9 @@ class GpySchemaError(Exception):
         self.cause = cause
         self.schema = schema
         self.instance = instance
+    
+    def __str__(self):
+        return str(self.message)
 
 class ValidationError(GpySchemaError):
     pass
@@ -180,7 +183,7 @@ class GpySchema(object):
             if attr not in schema_valid_attr:
                 raise SchemaError('无效的数据模型: 不能识别的模式 {0} '.format(attr))
 
-    def validate(self, schema=None, data=None, name='', strict=True):
+    def validate(self, schema=None, data=None, name='', index=None, strict=True):
         schema = schema or self.schema
 
         rtype = schema.get('type')
@@ -191,7 +194,7 @@ class GpySchema(object):
         message = schema.get('message')
         _ref = schema.get('$ref')
         if message:
-            message = message.format(name = title, value = data, title = title, data = data)
+            message = message.format(title = title, key = title, value = data, name = title, data = data, index = index, order = index)
 
         if enum and data not in enum:
             raise ValidationError(message or '{0} 值必须在指定区域内, 该区域是({1})'.format(title, ','.join(str(i) for i in enum)), 'enum', title)
@@ -290,26 +293,26 @@ class GpySchema(object):
 
 
             if isinstance(items, dict):
-                for i in data:
-                    self.validate(items, i, name=title, strict=strict)
+                for i, j in enumerate(data):
+                    self.validate(items, j, name=title, index=i+1, strict=strict)
             elif isinstance(items, list):
                 item_len = len(items)
                 if additionalItems is False:
                     if len(data) > item_len:
                         raise ValidationError(message or '{0} 元素数量超过规定值'.format(title), 'additionalItems', title)
                 elif additionalItems:
-                    for i in data[item_len:]:
-                        self.validate(additionalItems, i, name=title, strict=strict)
-                for index, i in enumerate(data[:item_len]):
-                    self.validate(items[index], i, name=title, strict=strict)
+                    for i, j in enumerate(data[item_len:]):
+                        self.validate(additionalItems, j, name=title, index=(item_len + i + 1), strict=strict)
+                for i, j in enumerate(data[:item_len]):
+                    self.validate(items[i], j, name=title, index=i+1, strict=strict)
             else:
                 item_len = 0
                 if additionalItems is False:
                     if len(data) > item_len:
                         raise ValidationError(message or '{0} 元素数量超过规定值'.format(title), 'additionalItems', title)
                 elif additionalItems:
-                    for i in data[item_len:]:
-                        self.validate(additionalItems, i, name=title, strict=strict)
+                    for i, j in enumerate(data[item_len:]):
+                        self.validate(additionalItems, j, name=title, index=(item_len + i + 1), strict=strict)
 
             return True
 
