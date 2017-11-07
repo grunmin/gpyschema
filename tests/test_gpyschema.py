@@ -13,11 +13,11 @@ class TestSchema(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        print 'test begin\n'
+        print 'schema test begin\n'
     
     @classmethod
     def tearDownClass(self):
-        print '\ntest complete'
+        print '\nschema test complete'
 
     def test_not_none(self):
         with self.assertRaises(SchemaError):
@@ -41,7 +41,46 @@ class TestSchema(unittest.TestCase):
 
         with self.assertRaises(SchemaError):
             GpySchema({'type': 'object', '$ref': 'sss'}).check_schema()
+        
 
+        with self.assertRaises(SchemaError):
+            GpySchema({'type': 'object', '$ref': 'sss'}, ref={}).check_schema()
+        with self.assertRaises(SchemaError):
+            GpySchema({'type': 'object', '$ref': 'sss'}, ref={'sss': []}).check_schema()
+        with self.assertRaises(SchemaError):
+            GpySchema({'type': 'object', '$ref': 'sss'}, ref={'sss': 1}).check_schema()
+        with self.assertRaises(SchemaError):
+            GpySchema({'type': 'object', '$ref': 'sss'}, ref={'sss': {}}).check_schema()
+        
+        self.assertIsNone(
+            GpySchema({'type': 'object', '$ref': 'sss'}, ref={'sss': {'type': 'object'}}).check_schema()
+        )
+        self.assertIsNone(
+            GpySchema({'$ref': 'sss'}, ref={'sss': {'type': 'object'}}).check_schema()
+        )
+        self.assertIsNone(
+            GpySchema({'type': 'object', 'properties': {'gg': {'$ref': 'sss'}}}, ref={'sss': {'type': 'object'}}).check_schema()
+        )
+
+    def test_valid_attr(self):
+        
+        with self.assertRaisesRegexp(SchemaError, '无效的数据模型: 不能识别的模式'):
+            GpySchema({'type': 'object', 'maxLength':1}).check_schema()
+        with self.assertRaisesRegexp(SchemaError, '无效的数据模型: 不能识别的模式'):
+            GpySchema({'type': 'object', 'minimum':1}).check_schema()
+        with self.assertRaisesRegexp(SchemaError, '无效的数据模型: 不能识别的模式'):
+            GpySchema({'type': 'object', 'items':{'type': 'object'}}).check_schema()
+        with self.assertRaisesRegexp(SchemaError, '无效的数据模型: 不能识别的模式'):
+            GpySchema({'type': 'array', 'properties':{'a': {'type': 'string'}}}).check_schema()
+        with self.assertRaisesRegexp(SchemaError, '无效的数据模型: 不能识别的模式'):
+            GpySchema({'type': 'array', 'required':['a']}).check_schema()
+        with self.assertRaisesRegexp(SchemaError, '无效的数据模型: 不能识别的模式'):
+            GpySchema({'type': 'array', 'required':['a']}).check_schema()
+        with self.assertRaisesRegexp(SchemaError, '无效的数据模型: 不能识别的模式'):
+            GpySchema({'type': 'string', 'minLenght':3}).check_schema()
+        with self.assertRaisesRegexp(SchemaError, '无效的数据模型: 不能识别的模式'):
+            GpySchema({'type': 'integer', 'mininum':4}).check_schema()
+        
     def test_message(self):
         with self.assertRaises(SchemaError):
             GpySchema({'type': 'object', 'message': []}).check_schema()
@@ -362,15 +401,47 @@ class TestSchema(unittest.TestCase):
                 'type': 'number', 
                 'minimum': 2,
             }).check_schema())
-    
-
-            
-
-
 
 
 class TestValidator(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(self):
+        print 'validator test begin\n'
+    
+    @classmethod
+    def tearDownClass(self):
+        print '\nvalidator test complete'
+
+    def test_message(self):
+        with self.assertRaisesRegexp(ValidationError, '12'):
+            GpySchema().validate({
+                'type': 'array',
+                'items': {'not': {'type': 'number'}, 'message': '{index}{value}'},
+            }, [2])
+        with self.assertRaisesRegexp(ValidationError, '1\[1\]'):
+            GpySchema().validate({
+                'type': 'array',
+                'items': [{'type': 'object', 'message': '{index}{value}'}, {'type': 'string', 'message': '{index}'}],
+                'additionalItems': {'type': 'array', 'message': '{index}{value}'}
+            }, [[1], '', []])
+        with self.assertRaisesRegexp(ValidationError, '3a'):
+            GpySchema().validate({
+                'type': 'array',
+                'items': [{'type': 'object', 'message': '{index}'}, {'type': 'string', 'message': '{index}'}],
+                'additionalItems': {'type': 'array', 'message': '{index}{value}'}
+            }, [{}, '', 'a'])
+        with self.assertRaisesRegexp(ValidationError, 'aaa thisisa thisisa'):
+            GpySchema().validate({
+                'type': 'object',
+                'properties': {
+                    'a': {'type': 'object', 'message': '{key}{name}{title} {value} {data}'},
+                    'b': {'type': 'string', 'message': '{key}{name}{title} {value} {data}'}
+                }
+            }, {
+                'a': 'thisisa',
+            })
+        
     def test_not(self):
         with self.assertRaises(ValidationError):
             GpySchema().validate({
